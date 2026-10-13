@@ -95,15 +95,24 @@ MAX_CANDIDATES=1200 SCREEN_WORKERS=8 $PY screen.py
 | `MIN_AMOUNT` | 80000000 | 成交额下限（元） |
 | `KLINE_LEN` | 250 | 每股回溯日线根数 |
 
-**过滤器相关**
+**过滤器相关**（默认值于 2026-10-14 按 `optimize.py` 的训练/测试分割结果重定）
 
 | 变量 | 默认 | 作用 |
 |---|---|---|
 | `FILTER_RS` | 1 | 是否启用相对强度过滤 |
-| `FILTER_RS_MIN` | 0.0 | RS 下限（0 = 强于大盘） |
+| `FILTER_RS_MIN` | **0.10** | RS 下限（10% = 强于大盘 10%；调到 0 即旧口径） |
 | `FILTER_TURNOVER` | 1 | 是否启用换手率过滤 |
-| `FILTER_TURNOVER_MIN/MAX` | 0.005 / 0.15 | 换手率区间 |
+| `FILTER_TURNOVER_MIN/MAX` | **0.02 / 0.10** | 换手率区间（2% ~ 10%） |
+| `FILTER_VOL` | 1 | 是否启用**量比**过滤 |
+| `FILTER_VOL_MIN` | **1.2** | 量比下限（当日量 / 5 日均量） |
 | `FILTER_POS` | 0 | 是否启用股价位置过滤（默认关，会和突破类策略冲突） |
+
+**回测/优化相关**
+
+| 变量 | 默认 | 作用 |
+|---|---|---|
+| `OP_POOL` | 400 | `optimize.py` 的随机样本数 |
+| `OP_STEP` | 3 | `optimize.py` 每隔几个交易日取一个信号日 |
 
 **择时相关**
 

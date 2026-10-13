@@ -141,7 +141,7 @@ def collect(code, bench):
             continue
         if not res["hits"]:
             continue
-        passed, _ = filters.apply(sub)
+        passed, _ = filters.apply(sub, hits=res["hits"])
         if not passed:
             continue
         sig.append((i, res["hits"]))
@@ -223,7 +223,9 @@ def build_segments(stock_data, hold):
             trades.append(rn)
             for h in hits:
                 per_strategy[h].append(rn)
-            per_nhits[min(len(hits), 3)].append(rn)
+            # 按「非宽信号命中数」分组：0 = 只命中宽信号（金三角/多金叉共振）
+            n_strong = sum(1 for h in hits if h not in strategies.WIDE_SIGNALS)
+            per_nhits[min(n_strong, 3)].append(rn)
 
             dt_n, rt_n = [], []
             for j in range(e, x + 1):
@@ -338,13 +340,13 @@ def main():
     H0 = HOLDS[0]
     log("")
     log("=" * 86)
-    log("【命中信号数 vs 胜率】持有 %d 日" % H0)
+    log("【非宽信号命中数 vs 胜率】持有 %d 日（宽信号 = 金三角 / 多金叉共振）" % H0)
     log("=" * 86)
-    log("  %-12s %8s %9s %11s" % ("命中信号数", "样本", "胜率", "平均收益"))
+    log("  %-16s %8s %9s %11s" % ("非宽信号数", "样本", "胜率", "平均收益"))
     for k in sorted(results[H0]["per_nhits"]):
         s = results[H0]["per_nhits"][k]
-        tag = "%d 个" % k if k < 3 else "≥3 个"
-        log("  %-12s %8d %8.1f%% %10.2f%%" % (tag, s["n"], s["win_rate"] * 100, s["avg_ret"] * 100))
+        tag = "0 个（仅宽信号）" if k == 0 else ("%d 个" % k if k < 3 else "≥3 个")
+        log("  %-16s %8d %8.1f%% %10.2f%%" % (tag, s["n"], s["win_rate"] * 100, s["avg_ret"] * 100))
 
     # ── 分策略 ──
     log("")

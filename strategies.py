@@ -719,6 +719,257 @@ def idx_label(d, i: int) -> str:
 
 
 # ══════════════════════════════════════════════════════════════════
+#  补充策略 4 个（移植自 ling-0729/KHunter，2026-10-14）
+# ══════════════════════════════════════════════════════════════════
+
+def _swing_highs(highs, w: int = 2):
+    """swing high 下标：前后各 w 根的最高价都更低"""
+    out = []
+    n = len(highs)
+    for i in range(w, n - w):
+        ok = True
+        for j in range(1, w + 1):
+            if highs[i] <= highs[i - j] or highs[i] <= highs[i + j]:
+                ok = False
+                break
+        if ok:
+            out.append(i)
+    return out
+
+
+def s_leader(d, meta):
+    """龙头策略：严格第 2 板 + 非一字板 + 换手率 5%~25% + 流通市值 ≤300 亿 + 量能温和放大
+
+    ⚠️ 与原版的差异：KHunter 用**分时数据**判断「封板时间 ≤ 11:00」（早封板），
+       本项目日线数据拿不到分时，故省略该条 —— 条件因此**偏宽**，已在 README 标注。
+    """
+    if len(d) < 15:
+        return []
+    code = meta.get("code", "")
+    cur, prev = d.iloc[-1], d.iloc[-2]
+
+    if not _is_limit_up(cur, code):
+        return []
+    if float(prev["pct"] or 0) < _lim(code) - 0.005:      # 昨日也涨停 → 严格第 2 板
+        return []
+
+    lim = _lim(code)
+    pc = float(prev["close"])
+    if pc <= 0:
+        return []
+    limit_price = pc * (1 + lim)
+    if float(cur["open"]) >= limit_price - 0.005:          # 一字板/T字板
+        return []
+
+    tr = cur.get("turnover_rate")
+    if tr is None or pd.isna(tr):
+        return []
+    tr_pct = float(tr) * 100
+    if not (5.0 <= tr_pct <= 25.0):
+        return []
+
+    cap = meta.get("cap")
+    if cap is None or float(cap) > 300:
+        return []
+
+    pv, tv = float(prev["volume"]), float(cur["volume"])
+    if not (pv < tv <= pv * 2.0):
+        return []
+
+    for j in range(len(d) - 12, len(d) - 2):               # 近 10 日除昨日外无涨停
+        if j < 0:
+            continue
+        if _is_limit_up(d.iloc[j], code):
+            return []
+
+    return [f"龙头策略：严格第2板，换手 {tr_pct:.1f}%，流通市值 {float(cap):.0f} 亿，量能 {tv/pv:.1f} 倍"]
+
+
+def s_main_uptrend_dip(d, meta):
+    """主升低吸：一拉(30%~100%) → 二调(回撤 ≥18%) → 今日放量长阳贴紧突破 R（≤2%）"""
+    n = len(d)
+    if n < 106:
+        return []
+    highs = d["high"].astype(float).values
+    lows = d["low"].astype(float).values
+    closes = d["close"].astype(float).values
+    opens = d["open"].astype(float).values
+    last = n - 1
+    sh = _swing_highs(highs, 2)
+    if not sh:
+        return []
+
+    RECENT, LB = 60, 45
+    cand = [i for i in sh if last - RECENT <= i <= last - 1]
+    if not cand:
+        return []
+
+    H = L = None
+    h_idx = 0
+    for i in sorted(cand, key=lambda x: (-highs[x], -x)):
+        if i - LB < 0:
+            continue
+        lo = float(lows[i - LB:i].min())
+        if lo <= 0:
+            continue
+        rp = (highs[i] - lo) / lo * 100
+        if rp < 30.0 or rp > 100.0:
+            continue
+        H, L, h_idx = float(highs[i]), lo, i
+        break
+    if H is None:
+        return []
+
+    seg = lows[h_idx + 1:last]                             # 二调：H 之后的最低点 P
+    if len(seg) == 0:
+        return []
+    P = float(seg.min())
+    pull = (H - P) / H * 100
+    rally = (H - L) / L * 100
+    if pull < 18.0 or pull > rally - 8.0:
+        return []
+    if P <= L:                                             # 不得全额回吐一拉
+        return []
+
+    r_cand = [i for i in sh if h_idx < i < last]           # R = H 之后最后一个 swing high
+    if not r_cand:
+        return []
+    R = float(highs[r_cand[-1]])
+    if R >= H:
+        return []
+
+    C, O = closes[last], opens[last]
+    if O <= 0 or C <= O:
+        return []
+    if (C - O) / O * 100 < 5.0:                            # 阳线实体 ≥5%
+        return []
+    if C <= R:
+        return []
+    bk = (C - R) / R * 100
+    if bk > 2.0:                                           # 贴紧突破
+        return []
+
+    vma5 = float(d["volume"].iloc[-6:-1].mean())
+    if vma5 <= 0 or float(d.iloc[-1]["volume"]) < vma5 * 1.8:
+        return []
+    ma5 = d["ma5"].iloc[-1]
+    if pd.notna(ma5) and C < float(ma5):
+        return []
+
+    return [f"主升低吸：一拉 {rally:.0f}% → 二调 {pull:.0f}% → 突破 R {R:.2f}（+{bk:.1f}%）"]
+
+
+def s_new_stock_drawdown(d, meta):
+    """次新腰斩：截至信号日 K 线 ≤120 根 + 自上市最高价回撤 ≥50%"""
+    n = len(d)
+    if n < 20 or n > 120:
+        return []
+    hi = float(d["high"].max())
+    c = float(d["close"].iloc[-1])
+    if hi <= 0 or c <= 0:
+        return []
+    dd = 1 - c / hi
+    if dd < 0.50:
+        return []
+    return [f"次新腰斩：上市 {n} 根K线，自高点 {hi:.2f} 回撤 {dd*100:.1f}%"]
+
+
+def _macd_divergence(d, win: int = 20) -> bool:
+    """MACD 底背离：窗口内价格创新低，但 MACD 柱（DIF−DEA）未同步创新低"""
+    if len(d) < win + 5:
+        return False
+    seg = d.iloc[-win:]
+    close = seg["close"].astype(float).values
+    hist = (seg["dif"] - seg["dea"]).astype(float).values
+    i_low = int(np.argmin(close))
+    if i_low < 2:
+        return False
+    i_prev = int(np.argmin(close[:i_low]))
+    if not (close[i_low] < close[i_prev]):
+        return False
+    return bool(hist[i_low] > hist[i_prev])
+
+
+def _bottom_fractal(d) -> bool:
+    """底分型：近三根中间那根最低价最低，且第三根收阳"""
+    if len(d) < 3:
+        return False
+    a, b, c = d.iloc[-3], d.iloc[-2], d.iloc[-1]
+    return (float(b["low"]) < float(a["low"])
+            and float(b["low"]) < float(c["low"])
+            and float(c["close"]) > float(c["open"]))
+
+
+def _low_td9(d) -> bool:
+    """低位九转（简化）：最近 9 个交易日收盘价均低于 4 日前收盘"""
+    if len(d) < 13:
+        return False
+    cl = d["close"].astype(float).values
+    cnt = 0
+    for i in range(len(cl) - 9, len(cl)):
+        if i - 4 >= 0 and cl[i] < cl[i - 4]:
+            cnt += 1
+    return cnt >= 9
+
+
+def _morning_star_loose(d) -> bool:
+    """启明星（宽松版）：阴线（实体≥3%）→ 小实体（≤前者一半）→ 阳线"""
+    if len(d) < 3:
+        return False
+    a, b, c = d.iloc[-3], d.iloc[-2], d.iloc[-1]
+    oa, ca = float(a["open"]), float(a["close"])
+    ob, cb = float(b["open"]), float(b["close"])
+    if oa <= 0 or ob <= 0:
+        return False
+    body_a = abs(ca - oa) / oa
+    body_b = abs(cb - ob) / ob
+    return (ca < oa and body_a >= 0.03 and body_b <= body_a * 0.5
+            and float(c["close"]) > float(c["open"]))
+
+
+def s_oversold_rebound(d, meta):
+    """超跌反弹：120 日跌幅 ≥50% + MACD 底背离(必须) + (底分型|低位TD9|启明星)
+                  + 反弹幅度 ≤30% + 信号日阳线涨幅 >1% + 量能 ≥5 日均量 1.3 倍"""
+    n = len(d)
+    if n < 130 or n <= 120:                                # 排除次新（与次新腰斩互斥）
+        return []
+    cur = d.iloc[-1]
+    c = float(cur["close"])
+    pc = float(d["close"].iloc[-2])
+    if pc <= 0 or c <= pc:
+        return []
+    if (c - pc) / pc <= 0.01:
+        return []
+
+    hi120 = float(d["high"].iloc[-120:].max())
+    if hi120 <= 0 or c >= hi120 * 0.5:
+        return []
+
+    lo100 = float(d["low"].iloc[-100:].min())
+    if lo100 <= 0 or (c - lo100) / lo100 > 0.30:
+        return []
+
+    vma5 = float(d["volume"].iloc[-6:-1].mean())
+    if vma5 <= 0 or float(cur["volume"]) < vma5 * 1.3:
+        return []
+
+    if not _macd_divergence(d):
+        return []
+
+    feats = []
+    if _bottom_fractal(d):
+        feats.append("底分型")
+    if _low_td9(d):
+        feats.append("低位TD9")
+    if _morning_star_loose(d):
+        feats.append("启明星")
+    if not feats:
+        return []
+
+    return [f"超跌反弹：120日跌幅 {(1-c/hi120)*100:.0f}%，{'+'.join(feats)}，MACD 底背离"]
+
+
+# ══════════════════════════════════════════════════════════════════
 #  策略表（名称, 函数, 权重分）
 #
 #  权重来源：
@@ -748,7 +999,14 @@ STRATEGY_LIST = [
     ("2560战法",     s_2560, 70),
     ("趋势共振反转", s_trend_resonance, 65),
     ("量能异动",     s_volume_surge, 60),      # 放量不涨（主力吸筹特征）
+    ("龙头策略",     s_leader, 70),            # 补充：严格第2板（KHunter）
+    ("主升低吸",     s_main_uptrend_dip, 70),  # 补充：一拉二调突破R（KHunter）
+    ("次新腰斩",     s_new_stock_drawdown, 60),  # 补充：次新+深跌（KHunter）
+    ("超跌反弹",     s_oversold_rebound, 60),    # 补充：超跌+MACD底背离（KHunter）
 ]
+
+# 超跌类策略：天然「弱于大盘」，相对强度过滤器对它们不适用（见 filters.apply）
+DIP_STRATEGIES = {"次新腰斩", "超跌反弹"}
 
 # ── 已归档（不再参与选股；函数体保留，便于回溯与日后复核）──────────
 #  如需恢复，把对应元组挪回 STRATEGY_LIST 即可。

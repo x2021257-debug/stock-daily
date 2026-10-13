@@ -300,7 +300,7 @@ def analyse(code: str, name: str, snap=None, data_date=None, bench=None) -> dict
         return None
 
     # 策略命中之后再过一遍过滤器（用"少而精"换胜率）
-    passed, fnotes = filters.apply(d)
+    passed, fnotes = filters.apply(d, hits=res["hits"])
     if not passed:
         return {"_filtered": True, "code": code, "name": name, "_reason": fnotes[0]}
 
