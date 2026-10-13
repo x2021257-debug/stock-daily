@@ -105,8 +105,12 @@ def linreg_r2(y: np.ndarray):
     return float(slope), float(r2)
 
 
-def enrich(df: pd.DataFrame) -> pd.DataFrame:
-    """一次性给 DataFrame 补全所有策略需要的指标列。"""
+def enrich(df: pd.DataFrame, bench: pd.DataFrame | None = None) -> pd.DataFrame:
+    """一次性给 DataFrame 补全所有策略需要的指标列。
+
+    :param bench: 大盘日线（需含 date / close 两列）。传入后会额外算出相对强度 rs20。
+                  注意 merge 后用 ffill() 填充，只借用过去值，不会引入未来数据。
+    """
     d = df.copy().reset_index(drop=True)
     c = d["close"].astype(float)
     for n in (5, 10, 20, 25, 30, 60):
@@ -118,6 +122,10 @@ def enrich(df: pd.DataFrame) -> pd.DataFrame:
     v = d["volume"].astype(float)
     for n in (5, 10, 60):
         d[f"vma{n}"] = ma(v, n)
+    # 成交额 / 换手率（数据源提供时才有）
+    for col in ("amount", "turnover"):
+        if col in d.columns:
+            d[col] = pd.to_numeric(d[col], errors="coerce")
     # K线实体（相对开盘的幅度）与方向
     d["body"] = (d["close"] - d["open"]).abs() / d["open"].replace(0, np.nan)
     d["body_signed"] = (d["close"] - d["open"]) / d["open"].replace(0, np.nan)
@@ -126,6 +134,27 @@ def enrich(df: pd.DataFrame) -> pd.DataFrame:
     # 上/下影线（相对开盘）
     d["upper_shadow"] = (d["high"] - d[["open", "close"]].max(axis=1)) / d["open"].replace(0, np.nan)
     d["lower_shadow"] = (d[["open", "close"]].min(axis=1) - d["low"]) / d["open"].replace(0, np.nan)
+
+    # ── 过滤用的附加维度 ─────────────────────────────────────────
+    # 换手率 = 成交量 / 流通股本
+    if "outstanding_share" in d.columns:
+        sh = pd.to_numeric(d["outstanding_share"], errors="coerce").replace(0, np.nan)
+        d["turnover_rate"] = d["volume"] / sh
+    elif "turnover" in d.columns:
+        d["turnover_rate"] = pd.to_numeric(d["turnover"], errors="coerce")
+
+    # 相对 60 / 120 日高点的位置（1.0 = 正好处在区间最高点）
+    d["pos60"] = d["close"] / d["high"].rolling(60).max().replace(0, np.nan)
+    d["pos120"] = d["close"] / d["high"].rolling(120).max().replace(0, np.nan)
+
+    # 相对强度 RS = 个股 20 日涨幅 − 大盘 20 日涨幅
+    if bench is not None and len(bench) > 0:
+        b = bench[["date", "close"]].rename(columns={"close": "_bench"})
+        d = d.merge(b, on="date", how="left")
+        d["_bench"] = d["_bench"].ffill()        # 只借用过去值填充
+        d["ret20"] = d["close"].pct_change(20)
+        d["bench_ret20"] = d["_bench"].pct_change(20)
+        d["rs20"] = d["ret20"] - d["bench_ret20"]
     return d
 
 
@@ -635,6 +664,52 @@ def s_w_bottom(d, meta):
     return [f"W底形态（两底 {v1:.2f}/{v2:.2f}），今日放量突破颈线 {neck:.2f}"]
 
 
+def s_volume_surge(d, meta):
+    """量能异动（放量不涨）—— 主力悄悄吸筹的典型形态
+
+    逻辑
+    ----
+    大资金想建仓又不想拉高价格时，会出现「成交量突然放大、但股价不涨」的
+    量价背离：有人在持续接手筹码，却刻意压着价格不让人注意。
+
+    判据（阈值按 12,854 个「股票-日」样本实测标定：目标是全市场每天筛出 20~40 只，
+          定太严会像最初那样一个都选不出来）
+    ----
+    1. 今日成交量 ≥ 过去 5 日均量的 2.0 倍（异常放量）
+    2. 今日成交量 ≥ 昨日成交量的 1.5 倍（是"突然"放大，不是持续温和放量）
+    3. 今日涨幅在 -3% ~ +5%（没大涨也没大跌，价格被压住）
+    4. 今日振幅 ≥ 2%（当天有波动，排除一字横盘）
+    5. 今日成交额 ≥ 5000 万（有一定规模，排除冷门股）
+    """
+    if len(d) < 25:
+        return []
+    cur, prev = d.iloc[-1], d.iloc[-2]
+    vma5 = float(cur["vma5"]) if pd.notna(cur["vma5"]) else 0
+    if vma5 <= 0:
+        return []
+    v = float(cur["volume"])
+    pv = float(prev["volume"])
+    if pv <= 0:
+        return []
+    vr = v / vma5                      # 相对 5 日均量
+    jump = v / pv                      # 相对昨日
+    if vr < 2.0 or jump < 1.5:
+        return []
+    pct = float(cur["pct"] or 0)
+    if not (-0.03 <= pct <= 0.05):
+        return []
+    hi, lo, cl = float(cur["high"]), float(cur["low"]), float(cur["close"])
+    if cl <= 0:
+        return []
+    amp = (hi - lo) / cl
+    if amp < 0.02:
+        return []
+    amt = float(cur["amount"]) if "amount" in d.columns and pd.notna(cur["amount"]) else cl * v
+    if amt < 5e7:
+        return []
+    return [f"量能异动：量为5日均量的 {vr:.1f} 倍、昨日的 {jump:.1f} 倍，但涨幅仅 {pct*100:+.1f}%（放量不涨）"]
+
+
 def idx_label(d, i: int) -> str:
     """把 iloc 下标（可为负）转成日期字符串；找不到返回 '近期'"""
     try:
@@ -674,6 +749,7 @@ STRATEGY_LIST = [
     ("趋势共振反转", s_trend_resonance, 65),
     ("趋势起点",     s_trend_start, 60),
     ("W底",          s_w_bottom, 60),
+    ("量能异动",     s_volume_surge, 60),      # 放量不涨（主力吸筹特征）
 ]
 
 

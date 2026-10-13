@@ -1,0 +1,30 @@
+{
+  "generated_at": "2026-10-14 00:16:22",
+  "pool": 400,
+  "hold": 5,
+  "cost": 0.0025,
+  "signals_raw": 1887,
+  "signals_filtered": 1189,
+  "no_filter": {
+    "label": "raw",
+    "trading_days": 121,
+    "avg_holding": 77.97520661157024,
+    "day_win_rate": 0.5041322314049587,
+    "nav": 0.7553655956575945,
+    "annual": -0.43030168536047386,
+    "max_dd": -0.29447424759465435,
+    "sharpe": -2.329174037195437,
+    "span_days": 182
+  },
+  "with_filter": {
+    "label": "filtered",
+    "trading_days": 116,
+    "avg_holding": 51.25,
+    "day_win_rate": 0.5,
+    "nav": 0.8049496794751512,
+    "annual": -0.3528280146659488,
+    "max_dd": -0.26797725130999794,
+    "sharpe": -1.6383521335823235,
+    "span_days": 182
+  }
+}

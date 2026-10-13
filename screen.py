@@ -42,6 +42,7 @@ requests.Session.__init__ = _session_init
 import akshare as ak          # noqa: E402
 import pandas as pd           # noqa: E402
 
+import filters                # noqa: E402
 import strategies             # noqa: E402
 
 # ── 参数 ─────────────────────────────────────────────────────────
@@ -208,7 +209,7 @@ def fetch_industry(code: str):
 
 
 # ── 7. 精算：单只股票 ─────────────────────────────────────────────
-def analyse(code: str, name: str, snap=None, data_date=None) -> dict | None:
+def analyse(code: str, name: str, snap=None, data_date=None, bench=None) -> dict | None:
     for attempt in range(3):
         try:
             raw = ak.stock_zh_a_daily(symbol=code, adjust="qfq")
@@ -243,10 +244,15 @@ def analyse(code: str, name: str, snap=None, data_date=None) -> dict | None:
     except Exception:                                           # noqa: BLE001
         pass
 
-    d = strategies.enrich(df)
+    d = strategies.enrich(df, bench=bench)
     res = strategies.run_all(d, code=code, name=name, cap=cap)
     if not res["hits"]:
         return None
+
+    # 策略命中之后再过一遍过滤器（用"少而精"换胜率）
+    passed, fnotes = filters.apply(d)
+    if not passed:
+        return {"_filtered": True, "code": code, "name": name, "_reason": fnotes[0]}
 
     # 追高保护：60 日涨幅过大直接剔除
     if len(d) > 60 and float(d["close"].iloc[-61]) > 0:
@@ -270,7 +276,7 @@ def analyse(code: str, name: str, snap=None, data_date=None) -> dict | None:
         "weight": res["weight"],
         "score": tscore,
         "industry": None,
-        "reasons": res["reasons"],
+        "reasons": res["reasons"] + (fnotes or []),
         "notes": tnotes,
         "vol_ratio": round(float(cur["volume"]) / float(cur["vma5"]), 2) if pd.notna(cur["vma5"]) and float(cur["vma5"]) > 0 else 0,
         "chg60": round(chg60, 1),
@@ -320,7 +326,7 @@ HTML = """<!doctype html>
   .filters button.on{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
   tr.hide{display:none}
   @media(max-width:680px){
-    th:nth-child(5),td:nth-child(5),th:nth-child(7),td:nth-child(7){display:none}
+    th:nth-child(6),td:nth-child(6),th:nth-child(8),td:nth-child(8){display:none}
     body{font-size:14px}
   }
 </style>
@@ -353,6 +359,7 @@ HTML = """<!doctype html>
     __STRAT_LIST__
     <br>
     <b>已排除</b>：北交所、ST/*ST/退市/PT、停牌、成交额低于 8000 万、60 日涨幅超过 90%（防追高）。<br>
+    <b>信号过滤器</b>：__FILTER_DESC__<br>
     <b>评分</b>：技术面五维打分（均线排列 / RSI / MACD / 量能 / 涨跌幅），0~100。<br>
     <b>免责声明</b>：本页由程序按公开行情数据自动生成，仅用于学习与研究，
     <b>不构成任何投资建议</b>。股市有风险，投资需谨慎，请独立判断并自行承担后果。
@@ -387,9 +394,11 @@ def render(indexes, rows, trade_date, scanned, analysed):
             sc = r["score"]
             scls = "sc-a" if sc >= 70 else ("sc-b" if sc >= 55 else "sc-c")
             ind = r.get("industry") or "—"
+            vr = r.get("vol_ratio") or 0
             body += (f'<tr data-n="{r["n_hits"]}" data-strong="{r["n_strong"]}">'
                      f'<td>{r["code"]}</td><td>{r["name"]}</td>'
                      f'<td class="num">{r["price"]:.2f}</td>'
+                     f'<td class="num">{vr:.2f}</td>'
                      f'<td class="why">{ind}</td>'
                      f'<td class="num">{cap}</td>'
                      f'<td><span class="score {scls}">{sc}</span></td>'
@@ -397,6 +406,7 @@ def render(indexes, rows, trade_date, scanned, analysed):
                      f'<td class="why">{"; ".join(r["reasons"])}</td></tr>')
         table = ('<div style="overflow-x:auto"><table><thead><tr>'
                  '<th>代码</th><th>名称</th><th style="text-align:right">现价</th>'
+                 '<th style="text-align:right">量比</th>'
                  '<th>板块</th><th style="text-align:right">流通市值(亿)</th><th>评分</th>'
                  '<th>命中策略</th><th>入选理由</th>'
                  '</tr></thead><tbody>' + body + '</tbody></table></div>')
@@ -434,6 +444,7 @@ def render(indexes, rows, trade_date, scanned, analysed):
             .replace("__SCANNED__", str(scanned))
             .replace("__ANALYSED__", str(analysed))
             .replace("__NSTRAT__", str(len(strategies.STRATEGY_LIST)))
+            .replace("__FILTER_DESC__", filters.describe())
             .replace("__STRAT_LIST__", strat_list)
             .replace("__TRADE_DATE__", str(trade_date))
             .replace("__GEN_TIME__", datetime.now(CN_TZ).strftime("%Y-%m-%d %H:%M"))
@@ -463,6 +474,16 @@ def main():
     # 数据日期以实际行情为准（避免深夜运行时把"明天"的交易日当成数据日）
     data_date = indexes[0]["date"] if indexes and indexes[0].get("date") else trade_date
 
+    log("   大盘基准（算相对强度用）…")
+    bench = None
+    for sym in ("sh000300", "sh000001"):
+        try:
+            bench = ak.stock_zh_index_daily(symbol=sym)[["date", "close"]]
+            log(f"   已取 {sym}（{len(bench)} 根）")
+            break
+        except Exception as e:                                  # noqa: BLE001
+            log(f"   [warn] {sym} 获取失败: {type(e).__name__}")
+
     log("[2/4] 获取全市场快照…")
     snap = ak.stock_zh_a_spot()
     log(f"   全市场 {len(snap)} 只")
@@ -470,24 +491,32 @@ def main():
     log(f"   粗筛后候选 {len(cand)} 只（成交额≥{MIN_AMOUNT/1e8:.1f}亿）")
 
     log(f"[3/4] 精算 {len(cand)} 只（{WORKERS} 线程，{len(strategies.STRATEGY_LIST)} 策略）…")
-    rows, done = [], 0
+    rows, drop, done = [], [], 0
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:
-        futures = {pool.submit(analyse, r["代码"], r["名称"], snap, data_date): r["代码"]
+        futures = {pool.submit(analyse, r["代码"], r["名称"], snap, data_date, bench): r["代码"]
                    for _, r in cand.iterrows()}
         for fut in as_completed(futures):
             done += 1
             if done % 100 == 0:
-                log(f"   进度 {done}/{len(cand)}  已入选 {len(rows)}  用时 {time.time()-t0:.0f}s")
+                log(f"   进度 {done}/{len(cand)}  入选 {len(rows)}  被过滤 {len(drop)}  用时 {time.time()-t0:.0f}s")
             try:
                 res = fut.result()
             except Exception:                                   # noqa: BLE001
                 res = None
-            if res:
+            if not res:
+                continue
+            if res.get("_filtered"):
+                drop.append(res)
+            else:
                 rows.append(res)
 
     # 排序：先按「强信号数」（剔除宽信号后的命中数）→ 权重 → 技术分 → 市值
     rows.sort(key=lambda r: (-r["n_strong"], -r["weight"], -r["score"], -(r["cap"] or 0)))
-    log(f"   入选 {len(rows)} 只，用时 {time.time()-t0:.0f}s")
+    log(f"   入选 {len(rows)} 只；另有 {len(drop)} 只被过滤器拦下，用时 {time.time()-t0:.0f}s")
+    if drop:
+        from collections import Counter
+        for rsn, n in Counter(x["_reason"] for x in drop).most_common(5):
+            log(f"      拦截 {n:>4} 只：{rsn}")
 
     # 给入选股票补「所属行业」（东财，串行，避免触发风控）
     log(f"[3.5/4] 补行业分类（{len(rows)} 只，串行）…")
