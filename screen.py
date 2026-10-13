@@ -155,8 +155,60 @@ def tech_score(d) -> tuple[int, list[str]]:
     return max(0, min(100, score)), notes
 
 
-# ── 5. 精算：单只股票 ─────────────────────────────────────────────
-def analyse(code: str, name: str) -> dict | None:
+# ── 5. 快照拼接：把当天 K 线补到日线末尾 ───────────────────────────
+# 背景：新浪的「日线历史接口」当天数据要等到晚上才更新（实测 16:18 还没更，22:59 才有），
+#       但「实时快照接口」在收盘后立刻就是收盘价，且带完整 OHLC。
+#       所以：日线取到 T-1，再用快照补出 T 日，就能在收盘后十几分钟出结果。
+def append_snapshot(df: pd.DataFrame, code: str, snap: pd.DataFrame, data_date) -> pd.DataFrame:
+    """把快照里当天的 OHLC 追加到日线末尾。
+
+    安全校验：快照的「昨收」必须≈日线最后一天收盘（差 <0.5%），否则说明中间有除权，
+    复权口径对不上，宁可不拼也不要拼错。
+    """
+    if snap is None or snap.empty:
+        return df
+    try:
+        target = str(data_date)[:10]
+        last = str(df["date"].iloc[-1])[:10]
+        if last >= target:                      # 日线已含当天，无需拼接
+            return df
+        row = snap[snap["代码"] == code]
+        if row.empty:
+            return df
+        r = row.iloc[0]
+        o, h, l, c, v = (float(r["今开"]), float(r["最高"]), float(r["最低"]),
+                         float(r["最新价"]), float(r["成交量"]))
+        pc = float(r["昨收"])
+        lc = float(df["close"].iloc[-1])
+        if lc <= 0 or pc <= 0 or abs(pc / lc - 1) > 0.005:
+            return df                            # 口径不一致（疑似除权），放弃拼接
+        if not all(x > 0 for x in (o, h, l, c, v)):
+            return df
+        if h < max(o, c) or l > min(o, c):        # OHLC 自相矛盾，丢弃
+            return df
+        extra = pd.DataFrame([{
+            "date": pd.Timestamp(target), "open": o, "high": h,
+            "low": l, "close": c, "volume": v,
+        }])
+        return pd.concat([df, extra], ignore_index=True)
+    except Exception:                                            # noqa: BLE001
+        return df
+
+
+# ── 6. 个股所属行业 ───────────────────────────────────────────────
+def fetch_industry(code: str):
+    """查个股所属行业（东财），失败返回 None。只对入选股票调用，控制请求量。"""
+    plain = code[2:] if code[:2] in ("sh", "sz") else code
+    try:
+        info = ak.stock_individual_info_em(symbol=plain)
+        vals = info[info["item"] == "行业"]["value"].values
+        return str(vals[0]) if len(vals) else None
+    except Exception:                                            # noqa: BLE001
+        return None
+
+
+# ── 7. 精算：单只股票 ─────────────────────────────────────────────
+def analyse(code: str, name: str, snap=None, data_date=None) -> dict | None:
     for attempt in range(3):
         try:
             raw = ak.stock_zh_a_daily(symbol=code, adjust="qfq")
@@ -179,6 +231,9 @@ def analyse(code: str, name: str) -> dict | None:
         df[c] = pd.to_numeric(df[c], errors="coerce")
     if df[list(need[1:])].isna().any().any():
         return None
+
+    # 用快照补出当天 K 线（日线当天更新晚时的兜底）
+    df = append_snapshot(df, code, snap, data_date)
 
     price = float(df["close"].iloc[-1])
     cap = None
@@ -211,8 +266,10 @@ def analyse(code: str, name: str) -> dict | None:
         "cap": cap,
         "hits": res["hits"],
         "n_hits": len(res["hits"]),
+        "n_strong": sum(1 for h in res["hits"] if h not in strategies.WIDE_SIGNALS),
         "weight": res["weight"],
         "score": tscore,
+        "industry": None,
         "reasons": res["reasons"],
         "notes": tnotes,
         "vol_ratio": round(float(cur["volume"]) / float(cur["vma5"]), 2) if pd.notna(cur["vma5"]) and float(cur["vma5"]) > 0 else 0,
@@ -250,6 +307,7 @@ HTML = """<!doctype html>
   .tag{display:inline-block;background:#eef2ff;color:#3730a3;border-radius:4px;
        padding:1px 6px;font-size:12px;margin:0 4px 3px 0;white-space:nowrap}
   .tag.hot{background:#fef2f2;color:#991b1b}
+  .tag.wide{background:#f3f4f6;color:#9ca3af}
   .score{display:inline-block;font-weight:600;border-radius:4px;padding:1px 7px;font-size:13px}
   .sc-a{background:#fee2e2;color:#b91c1c}  .sc-b{background:#fef3c7;color:#92400e}
   .sc-c{background:#e5e7eb;color:#4b5563}
@@ -262,7 +320,7 @@ HTML = """<!doctype html>
   .filters button.on{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
   tr.hide{display:none}
   @media(max-width:680px){
-    th:nth-child(4),td:nth-child(4),th:nth-child(6),td:nth-child(6){display:none}
+    th:nth-child(5),td:nth-child(5),th:nth-child(7),td:nth-child(7){display:none}
     body{font-size:14px}
   }
 </style>
@@ -283,6 +341,7 @@ HTML = """<!doctype html>
     </div>
     <div class="filters" id="flt">
       <button data-min="1" class="on">全部 __COUNT__</button>
+      <button data-strong="1">⭐ 有强信号 __NS__</button>
       <button data-min="2">命中 ≥2 个策略 __N2__</button>
       <button data-min="3">命中 ≥3 个策略 __N3__</button>
     </div>
@@ -320,19 +379,25 @@ def render(indexes, rows, trade_date, scanned, analysed):
         body = ""
         for r in rows:
             hot = " hot" if r["n_hits"] >= 2 else ""
-            tags = "".join(f'<span class="tag{hot}">{h}</span>' for h in r["hits"])
+            tags = "".join(
+                (f'<span class="tag wide">{h}</span>' if h in strategies.WIDE_SIGNALS
+                 else f'<span class="tag{hot}">{h}</span>')
+                for h in r["hits"])
             cap = f'{r["cap"]:.0f}' if r.get("cap") else "—"
             sc = r["score"]
             scls = "sc-a" if sc >= 70 else ("sc-b" if sc >= 55 else "sc-c")
-            body += (f'<tr data-n="{r["n_hits"]}"><td>{r["code"]}</td><td>{r["name"]}</td>'
+            ind = r.get("industry") or "—"
+            body += (f'<tr data-n="{r["n_hits"]}" data-strong="{r["n_strong"]}">'
+                     f'<td>{r["code"]}</td><td>{r["name"]}</td>'
                      f'<td class="num">{r["price"]:.2f}</td>'
+                     f'<td class="why">{ind}</td>'
                      f'<td class="num">{cap}</td>'
                      f'<td><span class="score {scls}">{sc}</span></td>'
                      f'<td>{tags}</td>'
                      f'<td class="why">{"; ".join(r["reasons"])}</td></tr>')
         table = ('<div style="overflow-x:auto"><table><thead><tr>'
                  '<th>代码</th><th>名称</th><th style="text-align:right">现价</th>'
-                 '<th style="text-align:right">流通市值(亿)</th><th>评分</th>'
+                 '<th>板块</th><th style="text-align:right">流通市值(亿)</th><th>评分</th>'
                  '<th>命中策略</th><th>入选理由</th>'
                  '</tr></thead><tbody>' + body + '</tbody></table></div>')
     else:
@@ -341,6 +406,7 @@ def render(indexes, rows, trade_date, scanned, analysed):
     strat_list = " · ".join(f"{i+1}.{n}" for i, (n, _f, _w) in enumerate(strategies.STRATEGY_LIST))
     n2 = sum(1 for r in rows if r["n_hits"] >= 2)
     n3 = sum(1 for r in rows if r["n_hits"] >= 3)
+    ns = sum(1 for r in rows if r["n_strong"] >= 1)
     script = """<script>
 (function(){
   var btns=document.querySelectorAll('#flt button');
@@ -348,9 +414,11 @@ def render(indexes, rows, trade_date, scanned, analysed):
     b.addEventListener('click',function(){
       btns.forEach(function(x){x.classList.remove('on')});
       b.classList.add('on');
-      var m=+b.dataset.min;
+      var m=+b.dataset.min||1, st=+b.dataset.strong||0;
       document.querySelectorAll('tbody tr').forEach(function(tr){
-        tr.classList.toggle('hide', (+tr.dataset.n||0) < m);
+        var okN=(+tr.dataset.n||0)>=m;
+        var okS=st?(+tr.dataset.strong||0)>=1:true;
+        tr.classList.toggle('hide',!(okN&&okS));
       });
     });
   });
@@ -362,6 +430,7 @@ def render(indexes, rows, trade_date, scanned, analysed):
             .replace("__COUNT__", str(len(rows)))
             .replace("__N2__", str(n2))
             .replace("__N3__", str(n3))
+            .replace("__NS__", str(ns))
             .replace("__SCANNED__", str(scanned))
             .replace("__ANALYSED__", str(analysed))
             .replace("__NSTRAT__", str(len(strategies.STRATEGY_LIST)))
@@ -403,7 +472,7 @@ def main():
     log(f"[3/4] 精算 {len(cand)} 只（{WORKERS} 线程，{len(strategies.STRATEGY_LIST)} 策略）…")
     rows, done = [], 0
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:
-        futures = {pool.submit(analyse, r["代码"], r["名称"]): r["代码"]
+        futures = {pool.submit(analyse, r["代码"], r["名称"], snap, data_date): r["代码"]
                    for _, r in cand.iterrows()}
         for fut in as_completed(futures):
             done += 1
@@ -416,8 +485,20 @@ def main():
             if res:
                 rows.append(res)
 
-    rows.sort(key=lambda r: (-r["weight"], -r["score"], -(r["cap"] or 0)))
+    # 排序：先按「强信号数」（剔除宽信号后的命中数）→ 权重 → 技术分 → 市值
+    rows.sort(key=lambda r: (-r["n_strong"], -r["weight"], -r["score"], -(r["cap"] or 0)))
     log(f"   入选 {len(rows)} 只，用时 {time.time()-t0:.0f}s")
+
+    # 给入选股票补「所属行业」（东财，串行，避免触发风控）
+    log(f"[3.5/4] 补行业分类（{len(rows)} 只，串行）…")
+    got = 0
+    for r in rows:
+        ind = fetch_industry(r["code"])
+        if ind:
+            r["industry"] = ind
+            got += 1
+        time.sleep(0.05)
+    log(f"   拿到行业 {got}/{len(rows)} 只")
 
     log("[4/4] 生成网页…")
     out = render(indexes, rows, data_date, len(snap), len(cand))
