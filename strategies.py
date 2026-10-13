@@ -723,33 +723,43 @@ def idx_label(d, i: int) -> str:
 #
 #  权重来源：
 #   - 初始值取自 bigApush 各策略的 strategy_weight
-#   - **2026-10-13 按回测结果调整**（200 只随机样本 / 最近 250 交易日 / 793 个信号）：
+#   - 2026-10-13 按回测结果调整（200 只随机样本 / 最近 250 交易日 / 793 个信号）：
 #       金三角      50 → 15  （395 个信号，5日胜率 40.0%、20日 -2.90%，跑输基准）
 #       多金叉共振  65 → 20  （297 个信号，5日胜率 42.4%、20日 -4.49%，跑输基准）
-#     这两个策略命中过宽（占了全部信号的 87%），单独命中时参考价值低，故大幅降权。
-#     其余策略样本不足（≤17 个），不做调整，避免过拟合。
+#   - 2026-10-14 **归档 7 个失效策略**（见下方 ARCHIVED，仅保留代码、不再参与选股）
+#
+#  归档依据（两路交叉验证）：
+#   ① 我们自己的回测：这些策略信号少且收益为负（W底 20日 -6.14%、金叉不绿 0% 等）
+#   ② 独立项目 ling-0729/KHunter（630★，与本项目同源，同致谢 a-share-quant-selector）
+#      已把这几个策略移入 strategy/disabled/ 停用 —— 与我们的回测结论高度重合
 # ══════════════════════════════════════════════════════════════════
 WIDE_SIGNALS = {"金三角", "多金叉共振"}      # 宽信号：命中多但区分度低
 
+# 生效中的策略（11 个）
 STRATEGY_LIST = [
-    ("底部趋势拐点", s_bottom_inflection, 70),
     ("连阳回调",     s_continuous_rising, 50),
-    ("金叉不绿",     s_golden_not_green, 60),
     ("金三角",       s_golden_triangle, 15),      # ← 回测降权
     ("仙人指路",     s_immortal_guidance, 70),
     ("涨停回马枪",   s_limit_up_pullback, 60),
-    ("涨停横盘",     s_limit_up_sideways, 60),
     ("启明星",       s_morning_star, 55),
     ("多金叉共振",   s_multi_golden_cross, 20),   # ← 回测降权
     ("多方炮",       s_multi_party_cannon, 55),
     ("阻力位突破",   s_resistance_breakout, 60),
     ("2560战法",     s_2560, 70),
-    ("强势洗盘弱转强", s_strong_wash, 60),
-    ("趋势加速拐点", s_trend_acceleration, 65),
     ("趋势共振反转", s_trend_resonance, 65),
-    ("趋势起点",     s_trend_start, 60),
-    ("W底",          s_w_bottom, 60),
     ("量能异动",     s_volume_surge, 60),      # 放量不涨（主力吸筹特征）
+]
+
+# ── 已归档（不再参与选股；函数体保留，便于回溯与日后复核）──────────
+#  如需恢复，把对应元组挪回 STRATEGY_LIST 即可。
+ARCHIVED_STRATEGIES = [
+    ("底部趋势拐点",   s_bottom_inflection,  "信号稀疏、回测收益为负；KHunter 已停用"),
+    ("金叉不绿",       s_golden_not_green,   "回测 0% 胜率；KHunter 已停用"),
+    ("涨停横盘",       s_limit_up_sideways,  "与涨停回马枪重叠；KHunter 已停用"),
+    ("强势洗盘弱转强", s_strong_wash,        "回测 0% 胜率；KHunter 已停用"),
+    ("趋势加速拐点",   s_trend_acceleration, "命中少且不稳定；KHunter 已停用"),
+    ("趋势起点",       s_trend_start,        "20日胜率 30%、收益 -4.01%；KHunter 已停用"),
+    ("W底",            s_w_bottom,           "20日胜率 6.7%、收益 -6.14%；KHunter 已停用"),
 ]
 
 

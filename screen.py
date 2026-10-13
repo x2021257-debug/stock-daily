@@ -44,6 +44,7 @@ import pandas as pd           # noqa: E402
 
 import filters                # noqa: E402
 import strategies             # noqa: E402
+import timing                 # noqa: E402
 
 # ── 参数 ─────────────────────────────────────────────────────────
 CN_TZ = timezone(timedelta(hours=8))
@@ -83,7 +84,56 @@ def fetch_indexes():
     return out
 
 
-# ── 2. 交易日判断 ─────────────────────────────────────────────────
+# ── 2. 大盘择时（仓位建议）────────────────────────────────────────
+def market_position():
+    """趋势用沪深300、风险用中证500，算出「今天该用多少仓位」。"""
+    def _get(sym):
+        try:
+            df = ak.stock_zh_index_daily(symbol=sym)
+            if df is None or len(df) < 80:
+                return None
+            return df[["date", "high", "low", "close"]]
+        except Exception as e:                                  # noqa: BLE001
+            log(f"  [warn] 择时指数 {sym} 获取失败: {type(e).__name__}")
+            return None
+
+    idx_trend = _get("sh000300")
+    if idx_trend is None:
+        idx_trend = _get("sh000001")
+    if idx_trend is None:
+        return None
+    idx_risk = idx_trend
+    if timing.VAR_ENABLED:
+        _r = _get("sh000905")
+        if _r is not None:
+            idx_risk = _r
+    try:
+        t = timing.build(idx_trend, idx_risk)
+    except Exception as e:                                      # noqa: BLE001
+        log(f"  [warn] 择时计算失败: {type(e).__name__} {e}")
+        return None
+    last = t.iloc[-1]
+    ratio = float(last["ratio"])
+    if ratio >= 1.0:
+        advice = "趋势与风险均无警示 → 可按正常仓位操作"
+    elif ratio <= 0.0:
+        advice = "趋势走弱或风险偏高 → 建议空仓观望，等信号明确再动手"
+    else:
+        advice = "存在警示信号 → 建议仓位压到 %.0f%% 以内" % (ratio * 100)
+    return {
+        "date": str(last["date"]),
+        "label": str(last["label"]),
+        "ratio": ratio,
+        "adx": None if pd.isna(last["adx"]) else float(last["adx"]),
+        "trend_pos": float(last["trend_pos"]),
+        "var99": None if pd.isna(last["var99"]) else float(last["var99"]),
+        "var_pct": None if pd.isna(last["var_pct"]) else float(last["var_pct"]),
+        "var_pos": float(last["var_pos"]),
+        "advice": advice,
+    }
+
+
+# ── 3. 交易日判断 ─────────────────────────────────────────────────
 def latest_trade_date():
     try:
         cal = ak.tool_trade_date_hist_sina()
@@ -94,7 +144,7 @@ def latest_trade_date():
         return None
 
 
-# ── 3. 粗筛：全市场快照 ───────────────────────────────────────────
+# ── 4. 粗筛：全市场快照 ───────────────────────────────────────────
 def prefilter(snapshot: pd.DataFrame) -> pd.DataFrame:
     df = snapshot.copy()
     df = df[~df["代码"].str.startswith("bj")]                    # 排除北交所
@@ -109,7 +159,7 @@ def prefilter(snapshot: pd.DataFrame) -> pd.DataFrame:
     return df.reset_index(drop=True)
 
 
-# ── 4. 技术面评分（参考 bigApush simple_analyzer）──────────────────
+# ── 5. 技术面评分（参考 bigApush simple_analyzer）──────────────────
 def tech_score(d) -> tuple[int, list[str]]:
     cur = d.iloc[-1]
     score, notes = 50, []
@@ -156,7 +206,7 @@ def tech_score(d) -> tuple[int, list[str]]:
     return max(0, min(100, score)), notes
 
 
-# ── 5. 快照拼接：把当天 K 线补到日线末尾 ───────────────────────────
+# ── 6. 快照拼接：把当天 K 线补到日线末尾 ───────────────────────────
 # 背景：新浪的「日线历史接口」当天数据要等到晚上才更新（实测 16:18 还没更，22:59 才有），
 #       但「实时快照接口」在收盘后立刻就是收盘价，且带完整 OHLC。
 #       所以：日线取到 T-1，再用快照补出 T 日，就能在收盘后十几分钟出结果。
@@ -196,7 +246,7 @@ def append_snapshot(df: pd.DataFrame, code: str, snap: pd.DataFrame, data_date) 
         return df
 
 
-# ── 6. 个股所属行业 ───────────────────────────────────────────────
+# ── 7. 个股所属行业 ───────────────────────────────────────────────
 def fetch_industry(code: str):
     """查个股所属行业（东财），失败返回 None。只对入选股票调用，控制请求量。"""
     plain = code[2:] if code[:2] in ("sh", "sz") else code
@@ -208,7 +258,7 @@ def fetch_industry(code: str):
         return None
 
 
-# ── 7. 精算：单只股票 ─────────────────────────────────────────────
+# ── 8. 精算：单只股票 ─────────────────────────────────────────────
 def analyse(code: str, name: str, snap=None, data_date=None, bench=None) -> dict | None:
     for attempt in range(3):
         try:
@@ -283,7 +333,7 @@ def analyse(code: str, name: str, snap=None, data_date=None, bench=None) -> dict
     }
 
 
-# ── 6. 生成网页 ───────────────────────────────────────────────────
+# ── 9. 生成网页 ───────────────────────────────────────────────────
 HTML = """<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -324,6 +374,11 @@ HTML = """<!doctype html>
   .filters button{border:1px solid var(--line);background:#fff;border-radius:16px;
        padding:3px 12px;font-size:13px;color:var(--muted);cursor:pointer;font-family:inherit}
   .filters button.on{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+  .pos{display:flex;gap:24px;flex-wrap:wrap;align-items:center}
+  .pos .big{font-size:30px;font-weight:700;line-height:1.15}
+  .pos .cap{font-size:13px;color:var(--muted);margin-bottom:2px}
+  .pos .det{font-size:13px;color:#374151;line-height:1.95;flex:1 1 320px}
+  .p-full{color:#15803d} .p-half{color:#b45309} .p-zero{color:#b91c1c}
   tr.hide{display:none}
   @media(max-width:680px){
     th:nth-child(6),td:nth-child(6),th:nth-child(8),td:nth-child(8){display:none}
@@ -338,6 +393,10 @@ HTML = """<!doctype html>
 
   <div class="card">
     <div class="idx">__INDEX_HTML__</div>
+  </div>
+
+  <div class="card">
+    __POSITION_HTML__
   </div>
 
   <div class="card">
@@ -360,6 +419,7 @@ HTML = """<!doctype html>
     <br>
     <b>已排除</b>：北交所、ST/*ST/退市/PT、停牌、成交额低于 8000 万、60 日涨幅超过 90%（防追高）。<br>
     <b>信号过滤器</b>：__FILTER_DESC__<br>
+    <b>大盘择时</b>：__TIMING_DESC__<br>
     <b>评分</b>：技术面五维打分（均线排列 / RSI / MACD / 量能 / 涨跌幅），0~100。<br>
     <b>免责声明</b>：本页由程序按公开行情数据自动生成，仅用于学习与研究，
     <b>不构成任何投资建议</b>。股市有风险，投资需谨慎，请独立判断并自行承担后果。
@@ -370,7 +430,32 @@ HTML = """<!doctype html>
 """
 
 
-def render(indexes, rows, trade_date, scanned, analysed):
+def render(indexes, rows, trade_date, scanned, analysed, position=None):
+    if position:
+        ratio = float(position["ratio"])
+        pcls = "p-full" if ratio >= 1 else ("p-zero" if ratio <= 0 else "p-half")
+        icon = "✅" if ratio >= 1 else ("⛔" if ratio <= 0 else "⚠️")
+        adx = position.get("adx")
+        tpos = float(position.get("trend_pos", 0))
+        tdesc = {1.0: "强趋势 · 满足满仓条件",
+                 0.5: "弱趋势 · 仅满足半仓条件"}.get(tpos, "趋势不明或走弱 · 空仓条件")
+        vp = position.get("var_pct")
+        vpos = float(position.get("var_pos", 1))
+        vdesc = {1.0: "正常", 0.7: "偏高 · 注意", 0.4: "高 · 危险"}.get(vpos, "极高 · 崩溃档")
+        adx_txt = "—" if adx is None else "%.1f" % adx
+        vp_txt = "—" if vp is None else "%.0f%%" % (vp * 100)
+        pos_html = (
+            '<div class="pos">'
+            '<div><div class="cap">大盘择时 · 建议仓位</div>'
+            f'<div class="big {pcls}">{icon} {position["label"]}</div></div>'
+            '<div class="det">'
+            f'<div>趋势维度（沪深300 · ADX）：<b>{adx_txt}</b>　→　{tdesc}</div>'
+            f'<div>风险维度（中证500 · VaR 分位）：<b>{vp_txt}</b>　→　{vdesc}</div>'
+            f'<div>{position["advice"]}</div>'
+            '</div></div>')
+    else:
+        pos_html = '<div class="note">大盘择时数据获取失败，本页未给出仓位建议。</div>'
+
     if indexes:
         idx_html = ""
         for x in indexes:
@@ -435,6 +520,7 @@ def render(indexes, rows, trade_date, scanned, analysed):
 })();
 </script>"""
     html = (HTML
+            .replace("__POSITION_HTML__", pos_html)
             .replace("__INDEX_HTML__", idx_html)
             .replace("__TABLE__", table)
             .replace("__COUNT__", str(len(rows)))
@@ -445,6 +531,7 @@ def render(indexes, rows, trade_date, scanned, analysed):
             .replace("__ANALYSED__", str(analysed))
             .replace("__NSTRAT__", str(len(strategies.STRATEGY_LIST)))
             .replace("__FILTER_DESC__", filters.describe())
+            .replace("__TIMING_DESC__", timing.describe())
             .replace("__STRAT_LIST__", strat_list)
             .replace("__TRADE_DATE__", str(trade_date))
             .replace("__GEN_TIME__", datetime.now(CN_TZ).strftime("%Y-%m-%d %H:%M"))
@@ -456,6 +543,7 @@ def render(indexes, rows, trade_date, scanned, analysed):
     with open(os.path.join(OUT_DIR, "data.json"), "w", encoding="utf-8") as f:
         json.dump({"trade_date": str(trade_date),
                    "generated_at": datetime.now(CN_TZ).isoformat(),
+                   "position": position,
                    "indexes": indexes, "picks": rows},
                   f, ensure_ascii=False, indent=2)
     return out
@@ -473,6 +561,14 @@ def main():
         log(f'   {x["name"]} {x["close"]} {x["pct"]:+.2f}%')
     # 数据日期以实际行情为准（避免深夜运行时把"明天"的交易日当成数据日）
     data_date = indexes[0]["date"] if indexes and indexes[0].get("date") else trade_date
+
+    log("   大盘择时（仓位建议）…")
+    position = market_position()
+    if position:
+        log(f"   建议仓位：{position['label']}"
+            f"（ADX {position['adx']} · VaR分位 {position['var_pct']}）")
+    else:
+        log("   [warn] 择时数据获取失败，跳过")
 
     log("   大盘基准（算相对强度用）…")
     bench = None
@@ -530,7 +626,7 @@ def main():
     log(f"   拿到行业 {got}/{len(rows)} 只")
 
     log("[4/4] 生成网页…")
-    out = render(indexes, rows, data_date, len(snap), len(cand))
+    out = render(indexes, rows, data_date, len(snap), len(cand), position)
     log(f"完成 → {out}")
     return 0
 
