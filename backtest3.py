@@ -70,6 +70,10 @@ HOLDS = [int(x) for x in os.environ.get("BT_HOLDS", "5,10,20").split(",")]
 MAX_HOLD = max(HOLDS)
 COST = float(os.environ.get("BT_COST", "0.0025"))
 USE_TIMING = os.environ.get("BT_TIMING", "1") == "1"
+# 成交口径：
+#   open  = T+1 开盘买入 → 第 (T+1+H) 日开盘卖出（保守，信号在 T 日收盘后才算出）
+#   close = T 日尾盘买入 → 第 (T+H) 日收盘卖出（贴近"今天尾盘买、明天卖"的短线做法）
+BASIS = os.environ.get("BT_BASIS", "open")
 SEED = 99
 
 
@@ -216,27 +220,38 @@ def build_segments(stock_data, hold):
     for dates, op, cl, sig in stock_data:
         n = len(dates)
         for i, hits in sig:
-            e, x = i + 1, i + 1 + hold
-            if x >= n:
-                continue
-            rn = op[x] / op[e] - 1 - COST
+            if BASIS == "close":
+                e, x = i, i + hold          # T 日尾盘买入 → 第 (T+hold) 日收盘卖出
+                if x >= n or cl[i] <= 0:
+                    continue
+                rn = cl[x] / cl[i] - 1 - COST
+                dt_n, rt_n = [], []
+                for j in range(i + 1, x + 1):
+                    dt_n.append(dates[j])
+                    all_dates.add(dates[j])
+                    rt_n.append(cl[j] / cl[j - 1] - 1)
+            else:
+                e, x = i + 1, i + 1 + hold  # T+1 开盘买入 → 第 (T+1+hold) 日开盘卖出
+                if x >= n:
+                    continue
+                rn = op[x] / op[e] - 1 - COST
+                dt_n, rt_n = [], []
+                for j in range(e, x + 1):
+                    dt_n.append(dates[j])
+                    all_dates.add(dates[j])
+                    if j == e:
+                        rt_n.append(cl[j] / op[j] - 1)
+                    elif j == x:
+                        rt_n.append(op[j] / cl[j - 1] - 1)
+                    else:
+                        rt_n.append(cl[j] / cl[j - 1] - 1)
+
             trades.append(rn)
             for h in hits:
                 per_strategy[h].append(rn)
             # 按「非宽信号命中数」分组：0 = 只命中宽信号（金三角/多金叉共振）
             n_strong = sum(1 for h in hits if h not in strategies.WIDE_SIGNALS)
             per_nhits[min(n_strong, 3)].append(rn)
-
-            dt_n, rt_n = [], []
-            for j in range(e, x + 1):
-                dt_n.append(dates[j])
-                all_dates.add(dates[j])
-                if j == e:
-                    rt_n.append(cl[j] / op[j] - 1)
-                elif j == x:
-                    rt_n.append(op[j] / cl[j - 1] - 1)
-                else:
-                    rt_n.append(cl[j] / cl[j - 1] - 1)
             segs.append((dt_n, rt_n))
     return trades, segs, per_strategy, per_nhits, sorted(all_dates)
 
@@ -307,9 +322,11 @@ def main():
         results[H] = run_for_hold(stock_data, H, rmap or {})
 
     # ── 单笔胜率（主口径） ──
+    basis_txt = ("T 日尾盘成交（收盘价买/卖）" if BASIS == "close"
+                 else "T+1 开盘成交")
     log("")
     log("=" * 86)
-    log("【单笔胜率】T+1 开盘成交 · 已扣往返成本 %.2f%%" % (COST * 100))
+    log("【单笔胜率】%s · 已扣往返成本 %.2f%%" % (basis_txt, COST * 100))
     log("=" * 86)
     log("  %-6s %8s %9s %11s %11s %9s" % ("持有", "样本", "胜率", "平均收益", "中位数", "盈亏比"))
     for H in HOLDS:
@@ -351,7 +368,7 @@ def main():
     # ── 分策略 ──
     log("")
     log("=" * 86)
-    log("【分策略单笔表现】持有 %d 日 · T+1 开盘口径" % H0)
+    log("【分策略单笔表现】持有 %d 日 · %s" % (H0, basis_txt))
     log("=" * 86)
     rows = sorted(results[H0]["per_strategy"].items(),
                   key=lambda kv: -kv[1]["win_rate"])

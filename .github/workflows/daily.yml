@@ -2,7 +2,14 @@ name: 每日选股
 
 on:
   schedule:
+    # ⚠️ GitHub 的 schedule 不保证准时，高峰期会被延迟甚至**整个跳过**。
+    #    所以设 4 个时间点，并在流程里判断"今天是否已生成过"——
+    #    第一个成功的会生成数据，后面的自动跳过（也不会重复推送）。
+    #    UTC 07:30 / 07:50 / 08:10 / 08:30 = 北京 15:30 / 15:50 / 16:10 / 16:30
     - cron: '30 7 * * 1-5'
+    - cron: '50 7 * * 1-5'
+    - cron: '10 8 * * 1-5'
+    - cron: '30 8 * * 1-5'
   workflow_dispatch:
 
 permissions:
@@ -29,14 +36,38 @@ jobs:
       - name: 安装依赖
         run: pip install -r requirements.txt
 
+      - name: 判断今天是否已生成过（避免重复运行/重复推送）
+        id: guard
+        run: |
+          TODAY=$(TZ=Asia/Shanghai date +%F)
+          CUR=$(python -c "import json;print(json.load(open('docs/data.json')).get('trade_date',''))" 2>/dev/null || echo "")
+          echo "今天=$TODAY  现有数据=$CUR"
+          if [ "$CUR" = "$TODAY" ]; then
+            echo "今日数据已存在，跳过"
+            echo "SKIP=1" >> "$GITHUB_ENV"
+          else
+            echo "SKIP=0" >> "$GITHUB_ENV"
+          fi
+
       - name: 抓取行情并选股
+        if: env.SKIP != '1'
         run: python screen.py
         env:
           MAX_CANDIDATES: '1200'
           SCREEN_WORKERS: '8'
           MIN_AMOUNT: '80000000'
 
+      - name: 推送企业微信
+        if: env.SKIP != '1'
+        continue-on-error: true
+        run: python notify.py
+        env:
+          WECOM_WEBHOOK: ${{ secrets.WECOM_WEBHOOK }}
+          NOTIFY_SITE: https://x2021257-debug.github.io/stock-daily/
+          NOTIFY_MAX: '12'
+
       - name: 提交结果到仓库
+        if: env.SKIP != '1'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -48,8 +79,10 @@ jobs:
             echo "内容无变化，跳过提交"
           fi
 
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - if: env.SKIP != '1'
+        uses: actions/configure-pages@v5
+      - if: env.SKIP != '1'
+        uses: actions/upload-pages-artifact@v3
         with:
           path: docs
 
