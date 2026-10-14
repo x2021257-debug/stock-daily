@@ -25,6 +25,10 @@ jobs:
   screen:
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    outputs:
+      # 传给 deploy 任务：今日数据已存在时，整个部署也要跳过，
+      # 否则 deploy 会因找不到 github-pages artifact 而报错（曾经踩过）
+      skip: ${{ steps.guard.outputs.skip }}
     steps:
       - uses: actions/checkout@v4
 
@@ -43,10 +47,12 @@ jobs:
           CUR=$(python -c "import json;print(json.load(open('docs/data.json')).get('trade_date',''))" 2>/dev/null || echo "")
           echo "今天=$TODAY  现有数据=$CUR"
           if [ "$CUR" = "$TODAY" ]; then
-            echo "今日数据已存在，跳过"
+            echo "今日数据已存在，跳过选股与部署"
             echo "SKIP=1" >> "$GITHUB_ENV"
+            echo "skip=1" >> "$GITHUB_OUTPUT"
           else
             echo "SKIP=0" >> "$GITHUB_ENV"
+            echo "skip=0" >> "$GITHUB_OUTPUT"
           fi
 
       - name: 抓取行情并选股
@@ -88,6 +94,8 @@ jobs:
 
   deploy:
     needs: screen
+    # 今日数据已存在（重复触发）时跳过部署，避免"找不到 artifact"的报错
+    if: needs.screen.outputs.skip != '1'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
