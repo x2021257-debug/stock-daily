@@ -85,9 +85,23 @@ def build_markdown(d: dict) -> str:
 
 def push(webhook: str, content: str) -> bool:
     import urllib.request
+    import urllib.error
+
+    # ── 前置校验（只打印"是/否"和长度，绝不打印地址本身 —— 本仓库是公开的，
+    #    Actions 日志人人可见，泄露 webhook 等于让人能往群里发消息）──────
+    w = webhook.strip()
+    print("  ── webhook 自检 ──")
+    print("     去空白后长度        : %d" % len(w))
+    print("     含 qyapi.weixin.qq.com : %s" % ("qyapi.weixin.qq.com" in w))
+    print("     含 /cgi-bin/webhook/   : %s" % ("/cgi-bin/webhook/" in w))
+    print("     含 key= 参数          : %s" % ("key=" in w))
+    print("     原值首尾带空白      : %s" % (webhook != w))
+    if "?" in w:
+        print("     ? 之后字符数        : %d" % len(w.split("?", 1)[1]))
+
     body = json.dumps({"msgtype": "markdown", "markdown": {"content": content}},
                       ensure_ascii=False).encode("utf-8")
-    req = urllib.request.Request(webhook, data=body,
+    req = urllib.request.Request(w, data=body,
                                  headers={"Content-Type": "application/json"})
     # 不受沙箱/系统代理影响
     op = urllib.request.build_opener(urllib.request.ProxyHandler({}))
@@ -97,6 +111,18 @@ def push(webhook: str, content: str) -> bool:
         ok = resp.get("errcode") == 0
         print("  企业微信返回:", resp)
         return ok
+    except urllib.error.HTTPError as e:
+        detail = ""
+        try:
+            detail = e.read().decode("utf-8", errors="ignore")[:300]
+        except Exception:                                        # noqa: BLE001
+            pass
+        print("  推送失败: HTTP %s %s" % (e.code, e.reason))
+        print("  服务端返回: %s" % (detail or "(空)"))
+        if e.code == 404:
+            print("  → 404 说明地址不存在：多为 webhook 复制不完整"
+                  "（漏了 ?key= 或 key 少字符），也可能机器人已被删除")
+        return False
     except Exception as e:                                       # noqa: BLE001
         print("  推送失败:", type(e).__name__, e)
         return False

@@ -1,0 +1,36 @@
+name: 测试企业微信推送
+
+# 只做一件事：用仓库里已有的 docs/data.json 生成一条消息并发到企业微信。
+# 不抓行情、不跑策略、不部署网页 —— 约 30 秒出结果，专门用来验证推送通道。
+#
+# 用法：Actions 页面 → 左侧「测试企业微信推送」→ 右侧「运行工作流」
+on:
+  workflow_dispatch:
+
+jobs:
+  test-notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 检查 Secret 是否配置
+        env:
+          W: ${{ secrets.WECOM_WEBHOOK }}
+        run: |
+          if [ -z "$W" ]; then
+            echo "::error title=缺少 Secret::仓库里没有 WECOM_WEBHOOK。请到 Settings → Secrets and variables → Actions 添加。"
+            exit 1
+          fi
+          echo "WECOM_WEBHOOK 已配置（长度 ${#W}，值不会显示在日志里）"
+
+      - name: 发送测试消息
+        run: python notify.py
+        env:
+          WECOM_WEBHOOK: ${{ secrets.WECOM_WEBHOOK }}
+          NOTIFY_SITE: https://x2021257-debug.github.io/stock-daily/
+          NOTIFY_MAX: '5'
