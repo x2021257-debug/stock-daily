@@ -220,7 +220,16 @@ def build_segments(stock_data, hold):
     for dates, op, cl, sig in stock_data:
         n = len(dates)
         for i, hits in sig:
-            if BASIS == "close":
+            if BASIS == "overnight":
+                # T 日尾盘买入 → T+1 开盘卖出（只赚隔夜跳空）
+                e, x = i + 1, i + 1
+                if x >= n or cl[i] <= 0:
+                    continue
+                rn = op[x] / cl[i] - 1 - COST
+                dt_n = [dates[x]]
+                rt_n = [op[x] / cl[i] - 1]
+                all_dates.add(dates[x])
+            elif BASIS == "close":
                 e, x = i, i + hold          # T 日尾盘买入 → 第 (T+hold) 日收盘卖出
                 if x >= n or cl[i] <= 0:
                     continue
@@ -322,8 +331,9 @@ def main():
         results[H] = run_for_hold(stock_data, H, rmap or {})
 
     # ── 单笔胜率（主口径） ──
-    basis_txt = ("T 日尾盘成交（收盘价买/卖）" if BASIS == "close"
-                 else "T+1 开盘成交")
+    basis_txt = {"close": "T 日尾盘成交（收盘价买/卖）",
+                 "overnight": "T 日尾盘买 → T+1 开盘卖（隔夜跳空）"}.get(
+                     BASIS, "T+1 开盘成交")
     log("")
     log("=" * 86)
     log("【单笔胜率】%s · 已扣往返成本 %.2f%%" % (basis_txt, COST * 100))
