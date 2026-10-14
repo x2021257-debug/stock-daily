@@ -11,6 +11,11 @@ on:
     - cron: '10 8 * * 1-5'
     - cron: '30 8 * * 1-5'
   workflow_dispatch:
+    inputs:
+      force:
+        description: '强制运行（忽略"今日已生成"，用于测试推送）'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -46,7 +51,11 @@ jobs:
           TODAY=$(TZ=Asia/Shanghai date +%F)
           CUR=$(python -c "import json;print(json.load(open('docs/data.json')).get('trade_date',''))" 2>/dev/null || echo "")
           echo "今天=$TODAY  现有数据=$CUR"
-          if [ "$CUR" = "$TODAY" ]; then
+          if [ "${{ inputs.force }}" = "true" ]; then
+            echo "手动指定强制运行（忽略已有数据）"
+            echo "SKIP=0" >> "$GITHUB_ENV"
+            echo "skip=0" >> "$GITHUB_OUTPUT"
+          elif [ "$CUR" = "$TODAY" ]; then
             echo "今日数据已存在，跳过选股与部署"
             echo "SKIP=1" >> "$GITHUB_ENV"
             echo "skip=1" >> "$GITHUB_OUTPUT"
@@ -66,7 +75,12 @@ jobs:
       - name: 推送企业微信
         if: env.SKIP != '1'
         continue-on-error: true
-        run: python notify.py
+        run: |
+          if [ -z "$WECOM_WEBHOOK" ]; then
+            echo "::warning title=未配置企业微信::仓库里没有 WECOM_WEBHOOK 这个 Secret，已跳过推送。请到 Settings → Secrets and variables → Actions 添加。"
+            exit 0
+          fi
+          python notify.py
         env:
           WECOM_WEBHOOK: ${{ secrets.WECOM_WEBHOOK }}
           NOTIFY_SITE: https://x2021257-debug.github.io/stock-daily/
