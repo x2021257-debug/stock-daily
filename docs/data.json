@@ -1,6 +1,6 @@
 {
   "trade_date": "2026-11-03",
-  "generated_at": "2026-11-03T23:29:17.893063+08:00",
+  "generated_at": "2026-11-04T00:13:36.689190+08:00",
   "position": {
     "date": "2026-11-03",
     "label": "40% 仓位",
@@ -50,7 +50,7 @@
       "n_strong": 1,
       "weight": 80,
       "score": 90,
-      "industry": "服装家纺",
+      "industry": null,
       "reasons": [
         "均线/KDJ/MACD 三金叉共振（2026-10-30 ~ 2026-11-02）",
         "2026-11-02 放量长阳(+10.0%)突破60日高点（13.58）",
@@ -81,7 +81,7 @@
       "n_strong": 1,
       "weight": 80,
       "score": 80,
-      "industry": "白酒Ⅱ",
+      "industry": null,
       "reasons": [
         "均线/KDJ/MACD 三金叉共振（2026-10-30 ~ 2026-11-03）",
         "量能异动：量为5日均量的 2.7 倍、昨日的 2.2 倍，但涨幅仅 +4.5%（放量不涨）",
@@ -112,7 +112,7 @@
       "n_strong": 1,
       "weight": 80,
       "score": 75,
-      "industry": "软件开发",
+      "industry": null,
       "reasons": [
         "均线/KDJ/MACD 三金叉共振（2026-11-02 ~ 2026-11-03）",
         "量能异动：量为5日均量的 2.1 倍、昨日的 1.6 倍，但涨幅仅 +2.0%（放量不涨）",
@@ -142,7 +142,7 @@
       "n_strong": 1,
       "weight": 60,
       "score": 85,
-      "industry": "白酒Ⅱ",
+      "industry": null,
       "reasons": [
         "2026-11-02 放量长阳(+9.1%)突破60日高点（44.47）",
         "强于大盘 +32.3%",
@@ -170,7 +170,7 @@
       "n_strong": 1,
       "weight": 60,
       "score": 75,
-      "industry": "证券Ⅱ",
+      "industry": null,
       "reasons": [
         "量能异动：量为5日均量的 2.3 倍、昨日的 1.7 倍，但涨幅仅 +1.1%（放量不涨）",
         "强于大盘 +11.2%",
@@ -199,7 +199,7 @@
       "n_strong": 1,
       "weight": 60,
       "score": 70,
-      "industry": "电池",
+      "industry": null,
       "reasons": [
         "超跌反弹：120日跌幅 56%，底分型，MACD 底背离",
         "换手率 5.1%",
@@ -228,7 +228,7 @@
       "n_strong": 1,
       "weight": 60,
       "score": 70,
-      "industry": "证券Ⅱ",
+      "industry": null,
       "reasons": [
         "量能异动：量为5日均量的 2.8 倍、昨日的 2.4 倍，但涨幅仅 -0.4%（放量不涨）",
         "强于大盘 +11.9%",
@@ -256,7 +256,7 @@
       "n_strong": 1,
       "weight": 60,
       "score": 70,
-      "industry": "化学制品",
+      "industry": null,
       "reasons": [
         "量能异动：量为5日均量的 2.6 倍、昨日的 2.7 倍，但涨幅仅 +4.9%（放量不涨）",
         "强于大盘 +12.9%",
@@ -284,7 +284,7 @@
       "n_strong": 1,
       "weight": 60,
       "score": 65,
-      "industry": "电池",
+      "industry": null,
       "reasons": [
         "超跌反弹：120日跌幅 57%，底分型，MACD 底背离",
         "换手率 3.3%",
@@ -312,7 +312,7 @@
       "n_strong": 1,
       "weight": 60,
       "score": 65,
-      "industry": "光伏设备",
+      "industry": null,
       "reasons": [
         "超跌反弹：120日跌幅 54%，底分型，MACD 底背离",
         "换手率 8.1%",
@@ -341,7 +341,7 @@
       "n_strong": 0,
       "weight": 35,
       "score": 70,
-      "industry": "饮料乳品",
+      "industry": null,
       "reasons": [
         "均线金三角（MA5×MA10、MA5×MA20、MA10×MA20 依次金叉）且放量确认",
         "均线/KDJ/MACD 三金叉共振（2026-10-30 ~ 2026-11-03）",
@@ -371,7 +371,7 @@
       "n_strong": 0,
       "weight": 20,
       "score": 85,
-      "industry": "游戏Ⅱ",
+      "industry": null,
       "reasons": [
         "均线/KDJ/MACD 三金叉共振（2026-10-26 ~ 2026-10-28）",
         "强于大盘 +20.9%",
@@ -399,7 +399,7 @@
       "n_strong": 0,
       "weight": 20,
       "score": 80,
-      "industry": "电池",
+      "industry": null,
       "reasons": [
         "均线/KDJ/MACD 三金叉共振（2026-10-23 ~ 2026-10-28）",
         "强于大盘 +15.6%",
@@ -427,7 +427,7 @@
       "n_strong": 0,
       "weight": 20,
       "score": 70,
-      "industry": "电池",
+      "industry": null,
       "reasons": [
         "均线/KDJ/MACD 三金叉共振（2026-10-26 ~ 2026-10-29）",
         "强于大盘 +12.1%",
@@ -455,7 +455,7 @@
       "n_strong": 0,
       "weight": 20,
       "score": 65,
-      "industry": "水泥",
+      "industry": null,
       "reasons": [
         "均线/KDJ/MACD 三金叉共振（2026-11-02 ~ 2026-11-03）",
         "强于大盘 +12.3%",
@@ -484,7 +484,7 @@
       "n_strong": 0,
       "weight": 15,
       "score": 95,
-      "industry": "小家电",
+      "industry": null,
       "reasons": [
         "均线金三角（MA5×MA10、MA5×MA20、MA10×MA20 依次金叉）且放量确认",
         "强于大盘 +21.0%",
@@ -514,7 +514,7 @@
       "n_strong": 0,
       "weight": 15,
       "score": 95,
-      "industry": "休闲食品",
+      "industry": null,
       "reasons": [
         "均线金三角（MA5×MA10、MA5×MA20、MA10×MA20 依次金叉）且放量确认",
         "强于大盘 +26.4%",
@@ -544,7 +544,7 @@
       "n_strong": 0,
       "weight": 15,
       "score": 90,
-      "industry": "光伏设备",
+      "industry": null,
       "reasons": [
         "均线金三角（MA5×MA10、MA5×MA20、MA10×MA20 依次金叉）且放量确认",
         "强于大盘 +19.9%",
@@ -573,7 +573,7 @@
       "n_strong": 0,
       "weight": 15,
       "score": 90,
-      "industry": "生物制品",
+      "industry": null,
       "reasons": [
         "均线金三角（MA5×MA10、MA5×MA20、MA10×MA20 依次金叉）且放量确认",
         "强于大盘 +19.1%",
@@ -602,7 +602,7 @@
       "n_strong": 0,
       "weight": 15,
       "score": 80,
-      "industry": "非白酒",
+      "industry": null,
       "reasons": [
         "均线金三角（MA5×MA10、MA5×MA20、MA10×MA20 依次金叉）且放量确认",
         "强于大盘 +15.7%",
@@ -631,7 +631,7 @@
       "n_strong": 0,
       "weight": 15,
       "score": 80,
-      "industry": "电网设备",
+      "industry": null,
       "reasons": [
         "均线金三角（MA5×MA10、MA5×MA20、MA10×MA20 依次金叉）且放量确认",
         "强于大盘 +18.2%",
@@ -660,7 +660,7 @@
       "n_strong": 0,
       "weight": 15,
       "score": 75,
-      "industry": "航空装备Ⅱ",
+      "industry": null,
       "reasons": [
         "均线金三角（MA5×MA10、MA5×MA20、MA10×MA20 依次金叉）且放量确认",
         "强于大盘 +28.3%",
@@ -690,7 +690,7 @@
       "n_strong": 0,
       "weight": 15,
       "score": 75,
-      "industry": "工程机械",
+      "industry": null,
       "reasons": [
         "均线金三角（MA5×MA10、MA5×MA20、MA10×MA20 依次金叉）且放量确认",
         "强于大盘 +21.3%",
@@ -718,7 +718,7 @@
       "n_strong": 0,
       "weight": 15,
       "score": 75,
-      "industry": "医药商业",
+      "industry": null,
       "reasons": [
         "均线金三角（MA5×MA10、MA5×MA20、MA10×MA20 依次金叉）且放量确认",
         "强于大盘 +20.7%",
@@ -748,7 +748,7 @@
       "n_strong": 0,
       "weight": 15,
       "score": 70,
-      "industry": "电网设备",
+      "industry": null,
       "reasons": [
         "均线金三角（MA5×MA10、MA5×MA20、MA10×MA20 依次金叉）且放量确认",
         "强于大盘 +25.6%",
@@ -777,7 +777,7 @@
       "n_strong": 0,
       "weight": 15,
       "score": 65,
-      "industry": "中药Ⅱ",
+      "industry": null,
       "reasons": [
         "均线金三角（MA5×MA10、MA5×MA20、MA10×MA20 依次金叉）且放量确认",
         "强于大盘 +34.0%",
