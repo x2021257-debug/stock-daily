@@ -1,6 +1,6 @@
 {
   "trade_date": "2026-11-05",
-  "generated_at": "2026-11-06T00:32:37.476963+08:00",
+  "generated_at": "2026-11-06T00:51:18.205936+08:00",
   "position": {
     "date": "2026-11-05",
     "label": "40% 仓位",
@@ -50,7 +50,7 @@
       "n_strong": 2,
       "weight": 130,
       "score": 65,
-      "industry": "能源金属",
+      "industry": null,
       "reasons": [
         "2560战法：股价上穿MA25，5日均量上穿60日均量，放量收涨",
         "超跌反弹：120日跌幅 50%，底分型，MACD 底背离",
@@ -168,7 +168,7 @@
       "n_strong": 1,
       "weight": 75,
       "score": 70,
-      "industry": "化学制品",
+      "industry": null,
       "reasons": [
         "均线金三角（MA5×MA10、MA5×MA20、MA10×MA20 依次金叉）且放量确认",
         "超跌反弹：120日跌幅 55%，底分型，MACD 底背离",
@@ -256,7 +256,7 @@
       "n_strong": 1,
       "weight": 75,
       "score": 65,
-      "industry": "小金属",
+      "industry": null,
       "reasons": [
         "均线金三角（MA5×MA10、MA5×MA20、MA10×MA20 依次金叉）且放量确认",
         "超跌反弹：120日跌幅 58%，底分型，MACD 底背离",
@@ -284,7 +284,7 @@
       "n_strong": 1,
       "weight": 75,
       "score": 65,
-      "industry": "光伏设备",
+      "industry": null,
       "reasons": [
         "均线金三角（MA5×MA10、MA5×MA20、MA10×MA20 依次金叉）且放量确认",
         "超跌反弹：120日跌幅 62%，底分型，MACD 底背离",
@@ -342,7 +342,7 @@
       "n_strong": 1,
       "weight": 75,
       "score": 60,
-      "industry": "电子化学品Ⅱ",
+      "industry": null,
       "reasons": [
         "均线金三角（MA5×MA10、MA5×MA20、MA10×MA20 依次金叉）且放量确认",
         "超跌反弹：120日跌幅 53%，底分型，MACD 底背离",
@@ -371,7 +371,7 @@
       "n_strong": 1,
       "weight": 75,
       "score": 60,
-      "industry": "通用设备",
+      "industry": null,
       "reasons": [
         "均线金三角（MA5×MA10、MA5×MA20、MA10×MA20 依次金叉）且放量确认",
         "超跌反弹：120日跌幅 64%，底分型，MACD 底背离",
@@ -459,7 +459,7 @@
       "n_strong": 1,
       "weight": 70,
       "score": 60,
-      "industry": "广告营销",
+      "industry": null,
       "reasons": [
         "2560战法：股价上穿MA25，5日均量上穿60日均量，放量收涨",
         "强于大盘 +10.8%",
@@ -489,7 +489,7 @@
       "n_strong": 1,
       "weight": 60,
       "score": 70,
-      "industry": "电力",
+      "industry": null,
       "reasons": [
         "次新腰斩：上市 85 根K线，自高点 30.16 回撤 64.1%",
         "换手率 3.8%",
@@ -543,7 +543,7 @@
       "n_strong": 1,
       "weight": 60,
       "score": 65,
-      "industry": "半导体",
+      "industry": null,
       "reasons": [
         "超跌反弹：120日跌幅 61%，底分型，MACD 底背离",
         "换手率 6.7%",
@@ -569,7 +569,7 @@
       "n_strong": 1,
       "weight": 60,
       "score": 65,
-      "industry": "玻璃玻纤",
+      "industry": null,
       "reasons": [
         "超跌反弹：120日跌幅 66%，底分型，MACD 底背离",
         "换手率 4.2%",
@@ -677,7 +677,7 @@
       "n_strong": 1,
       "weight": 60,
       "score": 65,
-      "industry": "电池",
+      "industry": null,
       "reasons": [
         "超跌反弹：120日跌幅 51%，底分型，MACD 底背离",
         "换手率 8.0%",
@@ -703,7 +703,7 @@
       "n_strong": 1,
       "weight": 60,
       "score": 65,
-      "industry": "电池",
+      "industry": null,
       "reasons": [
         "超跌反弹：120日跌幅 52%，底分型，MACD 底背离",
         "换手率 5.5%",
@@ -731,7 +731,7 @@
       "n_strong": 1,
       "weight": 60,
       "score": 65,
-      "industry": "自动化设备",
+      "industry": null,
       "reasons": [
         "超跌反弹：120日跌幅 58%，底分型，MACD 底背离",
         "换手率 6.6%",
@@ -785,7 +785,7 @@
       "n_strong": 1,
       "weight": 60,
       "score": 65,
-      "industry": "环保设备Ⅱ",
+      "industry": null,
       "reasons": [
         "超跌反弹：120日跌幅 62%，底分型，MACD 底背离",
         "换手率 4.8%",
@@ -947,7 +947,7 @@
       "n_strong": 1,
       "weight": 60,
       "score": 60,
-      "industry": "消费电子",
+      "industry": null,
       "reasons": [
         "超跌反弹：120日跌幅 54%，底分型，MACD 底背离",
         "换手率 4.1%",
@@ -974,7 +974,7 @@
       "n_strong": 1,
       "weight": 60,
       "score": 55,
-      "industry": "消费电子",
+      "industry": null,
       "reasons": [
         "超跌反弹：120日跌幅 50%，底分型，MACD 底背离",
         "换手率 4.8%",
@@ -1128,7 +1128,7 @@
       "n_strong": 0,
       "weight": 35,
       "score": 70,
-      "industry": "光学光电子",
+      "industry": null,
       "reasons": [
         "均线金三角（MA5×MA10、MA5×MA20、MA10×MA20 依次金叉）且放量确认",
         "均线/KDJ/MACD 三金叉共振（2026-11-04 ~ 2026-11-05）",
