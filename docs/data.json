@@ -1,6 +1,6 @@
 {
   "trade_date": "2026-11-06",
-  "generated_at": "2026-11-06T23:20:01.385334+08:00",
+  "generated_at": "2026-11-07T00:15:16.045928+08:00",
   "position": {
     "date": "2026-11-06",
     "label": "40% 仓位",
@@ -50,7 +50,7 @@
       "n_strong": 1,
       "weight": 75,
       "score": 65,
-      "industry": "贸易Ⅱ",
+      "industry": null,
       "reasons": [
         "均线金三角（MA5×MA10、MA5×MA20、MA10×MA20 依次金叉）且放量确认",
         "2026-11-06 放量长阳(+10.0%)突破60日高点（6.86）",
@@ -82,7 +82,7 @@
       "n_strong": 0,
       "weight": 35,
       "score": 95,
-      "industry": "化学制药",
+      "industry": null,
       "reasons": [
         "均线金三角（MA5×MA10、MA5×MA20、MA10×MA20 依次金叉）且放量确认",
         "均线/KDJ/MACD 三金叉共振（2026-11-04 ~ 2026-11-06）",
@@ -114,7 +114,7 @@
       "n_strong": 0,
       "weight": 35,
       "score": 70,
-      "industry": "生物制品",
+      "industry": null,
       "reasons": [
         "均线金三角（MA5×MA10、MA5×MA20、MA10×MA20 依次金叉）且放量确认",
         "均线/KDJ/MACD 三金叉共振（2026-11-02 ~ 2026-11-05）",
@@ -144,7 +144,7 @@
       "n_strong": 0,
       "weight": 20,
       "score": 90,
-      "industry": "软件开发",
+      "industry": null,
       "reasons": [
         "均线/KDJ/MACD 三金叉共振（2026-11-02 ~ 2026-11-04）",
         "强于大盘 +23.8%",
@@ -173,7 +173,7 @@
       "n_strong": 0,
       "weight": 20,
       "score": 75,
-      "industry": "航空装备Ⅱ",
+      "industry": null,
       "reasons": [
         "均线/KDJ/MACD 三金叉共振（2026-11-03 ~ 2026-11-06）",
         "强于大盘 +14.4%",
@@ -203,7 +203,7 @@
       "n_strong": 0,
       "weight": 20,
       "score": 75,
-      "industry": "IT服务Ⅱ",
+      "industry": null,
       "reasons": [
         "均线/KDJ/MACD 三金叉共振（2026-11-05 ~ 2026-11-06）",
         "强于大盘 +15.5%",
@@ -230,7 +230,7 @@
       "n_strong": 0,
       "weight": 20,
       "score": 70,
-      "industry": "特钢Ⅱ",
+      "industry": null,
       "reasons": [
         "均线/KDJ/MACD 三金叉共振（2026-11-03 ~ 2026-11-06）",
         "强于大盘 +13.1%",
@@ -258,7 +258,7 @@
       "n_strong": 0,
       "weight": 20,
       "score": 65,
-      "industry": "军工电子Ⅱ",
+      "industry": null,
       "reasons": [
         "均线/KDJ/MACD 三金叉共振（2026-11-04 ~ 2026-11-06）",
         "强于大盘 +15.8%",
@@ -285,7 +285,7 @@
       "n_strong": 0,
       "weight": 15,
       "score": 95,
-      "industry": "电网设备",
+      "industry": null,
       "reasons": [
         "均线金三角（MA5×MA10、MA5×MA20、MA10×MA20 依次金叉）且放量确认",
         "强于大盘 +13.0%",
@@ -315,7 +315,7 @@
       "n_strong": 0,
       "weight": 15,
       "score": 90,
-      "industry": "航空装备Ⅱ",
+      "industry": null,
       "reasons": [
         "均线金三角（MA5×MA10、MA5×MA20、MA10×MA20 依次金叉）且放量确认",
         "强于大盘 +19.3%",
@@ -344,7 +344,7 @@
       "n_strong": 0,
       "weight": 15,
       "score": 90,
-      "industry": "一般零售",
+      "industry": null,
       "reasons": [
         "均线金三角（MA5×MA10、MA5×MA20、MA10×MA20 依次金叉）且放量确认",
         "强于大盘 +26.9%",
@@ -373,7 +373,7 @@
       "n_strong": 0,
       "weight": 15,
       "score": 90,
-      "industry": "消费电子",
+      "industry": null,
       "reasons": [
         "均线金三角（MA5×MA10、MA5×MA20、MA10×MA20 依次金叉）且放量确认",
         "强于大盘 +20.3%",
@@ -402,7 +402,7 @@
       "n_strong": 0,
       "weight": 15,
       "score": 75,
-      "industry": "汽车零部件",
+      "industry": null,
       "reasons": [
         "均线金三角（MA5×MA10、MA5×MA20、MA10×MA20 依次金叉）且放量确认",
         "强于大盘 +26.6%",
