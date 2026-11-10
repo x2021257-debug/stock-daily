@@ -1,6 +1,6 @@
 {
   "trade_date": "2026-11-10",
-  "generated_at": "2026-11-10T23:55:28.966875+08:00",
+  "generated_at": "2026-11-11T00:30:02.937858+08:00",
   "position": {
     "date": "2026-11-10",
     "label": "40% 仓位",
@@ -385,7 +385,7 @@
       "n_strong": 0,
       "weight": 35,
       "score": 60,
-      "industry": "自动化设备",
+      "industry": null,
       "reasons": [
         "均线金三角（MA5×MA10、MA5×MA20、MA10×MA20 依次金叉）且放量确认",
         "均线/KDJ/MACD 三金叉共振（2026-11-09 ~ 2026-11-10）",
@@ -499,7 +499,7 @@
       "n_strong": 0,
       "weight": 20,
       "score": 60,
-      "industry": "汽车零部件",
+      "industry": null,
       "reasons": [
         "均线/KDJ/MACD 三金叉共振（2026-11-09 ~ 2026-11-10）",
         "强于大盘 +17.7%",
@@ -611,7 +611,7 @@
       "n_strong": 0,
       "weight": 15,
       "score": 85,
-      "industry": "自动化设备",
+      "industry": null,
       "reasons": [
         "均线金三角（MA5×MA10、MA5×MA20、MA10×MA20 依次金叉）且放量确认",
         "强于大盘 +31.7%",
@@ -641,7 +641,7 @@
       "n_strong": 0,
       "weight": 15,
       "score": 80,
-      "industry": "半导体",
+      "industry": null,
       "reasons": [
         "均线金三角（MA5×MA10、MA5×MA20、MA10×MA20 依次金叉）且放量确认",
         "强于大盘 +41.8%",
@@ -757,7 +757,7 @@
       "n_strong": 0,
       "weight": 15,
       "score": 75,
-      "industry": "通用设备",
+      "industry": null,
       "reasons": [
         "均线金三角（MA5×MA10、MA5×MA20、MA10×MA20 依次金叉）且放量确认",
         "强于大盘 +47.8%",
